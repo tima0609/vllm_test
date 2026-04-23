@@ -53,12 +53,12 @@ nvidia-smi
 ```
 應顯示 GPU 資訊與驅動版本。若此步驟失敗，問題在驅動，而非 Container Toolkit。
 
-3. 確認 nvidia-container-toolkit 已安裝
+2. 確認 nvidia-container-toolkit 已安裝
 ```bash
 nvidia-ctk --version
 ```
 
-4. 實際測試 Docker 能否存取 GPU（最直接的驗證方式）
+3. 實際測試 Docker 能否存取 GPU（最直接的驗證方式）
 ```bash
 docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 ```
