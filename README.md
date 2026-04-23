@@ -7,7 +7,7 @@
 ## 專案架構
 
 ```
-vllm_test2/
+vllm_test/
 ├── .env                          # 環境變數設定（模型、GPU、API 金鑰）
 ├── compose.yaml                  # Docker Compose 服務編排
 ├── hf-cache/                     # Hugging Face 模型快取（持久化）
