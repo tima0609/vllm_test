@@ -1,1 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>vLLM Chat UI</title>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2b;
+      --panel-2: #1a243a;
+      --text: #e8eefc;
+      --muted: #9fb0d1;
+      --accent: #67a3ff;
+      --user: #203559;
+      --assistant: #16243f;
+      --reasoning: #2a2240;
+      --system: #2d2d2d;
+      --border: #2a3a5d;
+      --danger: #d9534f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .25);
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 120px 120px auto auto auto;
+      gap: 12px;
+      padding: 16px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .toolbar input,
+    .toolbar button,
+    textarea {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0d1424;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+
+    .toolbar button,
+    .actions button {
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+
+    .toolbar button.secondary,
+    .actions button.secondary {
+      background: #33476e;
+    }
+
+    .toolbar button.danger,
+    .actions button.danger {
+      background: var(--danger);
+    }
+
+    .toolbar label {
+      font-size: 14px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .chat {
+      height: 62vh;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .msg {
+      padding: 14px 16px;
+      border-radius: 14px;
+      line-height: 1.6;
+      border: 1px solid var(--border);
+    }
+
+    .msg.user {
+      background: var(--user);
+      align-self: flex-end;
+      max-width: 80%;
+      white-space: pre-wrap;
+    }
+
+    .msg.assistant {
+      background: var(--assistant);
+      align-self: flex-start;
+      max-width: 88%;
+    }
+
+    .msg.reasoning {
+      background: var(--reasoning);
+      align-self: flex-start;
+      max-width: 88%;
+      color: #dccfff;
+      white-space: pre-wrap;
+    }
+
+    .msg.system {
+      background: var(--system);
+      align-self: center;
+      color: #ddd;
+      font-size: 13px;
+      max-width: 92%;
+      white-space: pre-wrap;
+    }
+
+    .msg.error {
+      background: #3a1d22;
+      border-color: #7a313c;
+      color: #ffd7dc;
+      align-self: center;
+      max-width: 92%;
+      white-space: pre-wrap;
+    }
+
+    .composer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+
+    code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .msg.assistant p,
+    .msg.assistant ul,
+    .msg.assistant ol,
+    .msg.assistant pre,
+    .msg.assistant blockquote,
+    .msg.assistant h1,
+    .msg.assistant h2,
+    .msg.assistant h3,
+    .msg.assistant h4 {
+      margin-top: 0.7em;
+      margin-bottom: 0.7em;
+    }
+
+    .msg.assistant pre {
+      overflow-x: auto;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0d1424;
+      border: 1px solid var(--border);
+    }
+
+    .msg.assistant pre code {
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .msg.assistant blockquote {
+      margin-left: 0;
+      padding-left: 12px;
+      border-left: 3px solid #577fbe;
+      color: #c8d7f5;
+    }
+
+    .msg.assistant table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+    }
+
+    .msg.assistant th,
+    .msg.assistant td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    @media (max-width: 768px) {
+      .toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .msg.user,
+      .msg.assistant,
+      .msg.reasoning {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">vLLM Chat UI</div>
+      <div class="subtitle">目前模型：<code>{{ model_name }}</code></div>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <input id="systemPrompt" value="你是個會用繁體中文回答的助理。" />
+        <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.7" />
+        <input id="maxTokens" type="number" min="1" max="4096" step="1" value="1024" />
+        <label>
+          <input id="showReasoning" type="checkbox" />
+          顯示 reasoning
+        </label>
+        <button id="newChatBtn" class="secondary">清空對話</button>
+        <button id="checkBtn">檢查連線</button>
+      </div>
+
+      <div id="chat" class="chat"></div>
+
+      <div class="composer">
+        <textarea id="prompt" placeholder="輸入你的問題，例如：請用繁體中文自我介紹。"></textarea>
+        <div class="actions">
+          <button id="stopBtn" class="danger" disabled>停止生成</button>
+          <button id="sendBtn">送出</button>
+        </div>
+        <div class="hint">按 Ctrl+Enter 或 Cmd+Enter 可快速送出</div>
+        <div id="status" class="status">尚未送出訊息。</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+
+    const chatEl = document.getElementById("chat");
+    const promptEl = document.getElementById("prompt");
+    const systemPromptEl = document.getElementById("systemPrompt");
+    const temperatureEl = document.getElementById("temperature");
+    const maxTokensEl = document.getElementById("maxTokens");
+    const showReasoningEl = document.getElementById("showReasoning");
+    const statusEl = document.getElementById("status");
+    const sendBtn = document.getElementById("sendBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const newChatBtn = document.getElementById("newChatBtn");
+    const checkBtn = document.getElementById("checkBtn");
+
+    let history = [];
+    let isStreaming = false;
+    let currentAbortController = null;
+
+    function scrollToBottom() {
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    function addPlainMessage(role, content) {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = content;
+      chatEl.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function addMarkdownMessage(role, content = "") {
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.innerHTML = renderMarkdown(content);
+      chatEl.appendChild(div);
+      enhanceCodeBlocks(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function updateMarkdownMessage(el, content) {
+      el.innerHTML = renderMarkdown(content || "");
+      enhanceCodeBlocks(el);
+      scrollToBottom();
+    }
+
+    function renderMarkdown(text) {
+      const safeText = text || "";
+      return marked.parse(safeText);
+    }
+
+    function enhanceCodeBlocks(container) {
+      container.querySelectorAll("pre code").forEach((block) => {
+        hljs.highlightElement(block);
+      });
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function setStreamingState(streaming) {
+      isStreaming = streaming;
+      sendBtn.disabled = streaming;
+      stopBtn.disabled = !streaming;
+    }
+
+    async function checkHealth() {
+      setStatus("檢查中...");
+      try {
+        const res = await fetch("/api/models");
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || data.error || JSON.stringify(data));
+        }
+        setStatus("連線正常，可開始對話。");
+      } catch (err) {
+        setStatus("連線失敗：" + err.message);
+      }
+    }
+
+    function buildMessages() {
+      const systemPrompt = systemPromptEl.value.trim();
+      const messages = [];
+      if (systemPrompt) {
+        messages.push({ role: "system", content: systemPrompt });
+      }
+      messages.push(...history);
+      return messages;
+    }
+
+    async function sendMessage() {
+      if (isStreaming) return;
+
+      const userText = promptEl.value.trim();
+      if (!userText) return;
+
+      const temperature = parseFloat(temperatureEl.value || "0.7");
+      const maxTokens = parseInt(maxTokensEl.value || "1024", 10);
+      const showReasoning = showReasoningEl.checked;
+
+      addPlainMessage("user", userText);
+      history.push({ role: "user", content: userText });
+
+      promptEl.value = "";
+      setStreamingState(true);
+      setStatus("模型串流回應中...");
+
+      let assistantText = "";
+      let reasoningText = "";
+      let stoppedByUser = false;
+
+      currentAbortController = new AbortController();
+
+      const reasoningEl = showReasoning ? addPlainMessage("reasoning", "[reasoning]\n") : null;
+      const assistantEl = addMarkdownMessage("assistant", "_生成中..._");
+
+      try {
+        const res = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: buildMessages(),
+            temperature,
+            max_tokens: maxTokens
+          }),
+          signal: currentAbortController.signal
+        });
+
+        if (!res.ok || !res.body) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let streamDone = false;
+
+        while (!streamDone) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          let boundaryIndex;
+          while ((boundaryIndex = buffer.indexOf("\n\n")) !== -1) {
+            const rawEvent = buffer.slice(0, boundaryIndex);
+            buffer = buffer.slice(boundaryIndex + 2);
+
+            if (!rawEvent.trim()) continue;
+
+            const lines = rawEvent.split("\n");
+            let eventName = "message";
+            let dataStr = "";
+
+            for (const line of lines) {
+              if (line.startsWith("event: ")) {
+                eventName = line.slice(7).trim();
+              } else if (line.startsWith("data: ")) {
+                dataStr += line.slice(6);
+              }
+            }
+
+            let payload = {};
+            try {
+              payload = dataStr ? JSON.parse(dataStr) : {};
+            } catch {
+              payload = {};
+            }
+
+            if (eventName === "content") {
+              assistantText += payload.text || "";
+              updateMarkdownMessage(assistantEl, assistantText || "_生成中..._");
+            } else if (eventName === "reasoning") {
+              reasoningText += payload.text || "";
+              if (reasoningEl) {
+                reasoningEl.textContent = "[reasoning]\n" + reasoningText;
+                scrollToBottom();
+              }
+            } else if (eventName === "error") {
+              throw new Error(payload.detail || payload.error || "串流失敗");
+            } else if (eventName === "done") {
+              streamDone = true;
+              break;
+            }
+          }
+        }
+
+        const finalAnswer = assistantText || reasoningText || "(模型有回應，但沒有可顯示的 content)";
+        updateMarkdownMessage(assistantEl, assistantText || finalAnswer);
+        history.push({ role: "assistant", content: finalAnswer });
+        setStatus("完成。");
+
+      } catch (err) {
+        if (err.name === "AbortError") {
+          stoppedByUser = true;
+          const partialAnswer = assistantText || reasoningText;
+
+          if (partialAnswer) {
+            updateMarkdownMessage(assistantEl, assistantText || partialAnswer);
+            history.push({ role: "assistant", content: partialAnswer });
+            setStatus("已停止生成，保留目前內容。");
+          } else {
+            assistantEl.remove();
+            if (reasoningEl) reasoningEl.remove();
+            addPlainMessage("system", "已停止生成。");
+            setStatus("已停止生成。");
+          }
+        } else {
+          try {
+            const fallbackRes = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                messages: buildMessages(),
+                temperature,
+                max_tokens: maxTokens
+              })
+            });
+
+            const data = await fallbackRes.json();
+
+            if (!fallbackRes.ok || data.ok === false) {
+              throw new Error(data.detail || data.error || "Fallback failed");
+            }
+
+            const answer = data.answer || "";
+            const content = data.content || "";
+            const reasoning = data.reasoning || "";
+
+            if (showReasoning && reasoningEl) {
+              reasoningEl.textContent = reasoning ? "[reasoning]\n" + reasoning : "[reasoning]\n(空)";
+            }
+
+            const finalAnswer = content || answer || "(模型有回應，但沒有可顯示的 content)";
+            updateMarkdownMessage(assistantEl, finalAnswer);
+            history.push({ role: "assistant", content: finalAnswer });
+            setStatus("完成（使用非串流 fallback）。");
+          } catch (fallbackErr) {
+            assistantEl.remove();
+            if (reasoningEl) reasoningEl.remove();
+            addPlainMessage("error", "發生錯誤：\n" + (fallbackErr.message || err.message));
+            setStatus("發生錯誤。");
+          }
+        }
+      } finally {
+        currentAbortController = null;
+        setStreamingState(false);
+      }
+    }
+
+    function stopGeneration() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    stopBtn.addEventListener("click", stopGeneration);
+
+    newChatBtn.addEventListener("click", () => {
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+      history = [];
+      chatEl.innerHTML = "";
+      setStatus("已清空對話。");
+    });
+
+    checkBtn.addEventListener("click", checkHealth);
+
+    promptEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        sendMessage();
+      }
+    });
+
+    addPlainMessage("system", "已準備好。先按「檢查連線」，或直接開始對話。");
+  </script>
+</body>
+</html>
