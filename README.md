@@ -45,6 +45,18 @@ LLM 模型（NVIDIA GPU 加速）
 - NVIDIA GPU + NVIDIA Container Toolkit
 - Hugging Face 帳號（需有目標模型的存取權限）
 
+
+依序執行以下指令確認：
+1. 確認 NVIDIA 驅動正常
+nvidia-smi
+應顯示 GPU 資訊與驅動版本。若此步驟失敗，問題在驅動，而非 Container Toolkit。
+
+2. 確認 nvidia-container-toolkit 已安裝
+nvidia-ctk --version
+
+3. 實際測試 Docker 能否存取 GPU（最直接的驗證方式）
+docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+
 ---
 
 ## 快速開始
