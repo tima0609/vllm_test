@@ -32,8 +32,6 @@ services:
       - ${MAX_MODEL_LEN}
       - --max-num-seqs
       - ${MAX_NUM_SEQS}
-      - --quantization
-      - awq  
 
     deploy:
       resources:
